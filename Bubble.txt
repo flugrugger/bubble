@@ -1,0 +1,198 @@
+macro "Nearest Neighbour" {
+	
+	setTool("line");
+	waitForUser("Please draw a line for the scale\n(DO NOT CLOSE THIS WINDOW \nUNTIL LINE HAD BEEN DRAWN)");
+	run("Set Scale...", "known=1.9 unit=cm global");
+	setTool("rectangle");
+	waitForUser("Please crop the image so that only flies are seen\n(DO NOT CLOSE THIS WINDOW \nUNTIL CROPPING IS DONE)");
+	
+	run("8-bit");
+	setAutoThreshold("Default");
+	run("Convert to Mask");
+	setBackgroundColor(255,255,255); //sets the colour to white
+	setForegroundColor(255,255,255);
+	waitForUser("Please erase anything that is not a fly\n(Do not close until you are done)");
+	run("Set Measurements...", "area mean min centroid center display redirect=None decimal=3");
+	//Circularity might be a unimportant option, remove
+	makePoint(0,0);
+	run("Analyze Particles...", "circularity=0.00-1.00 size=0.001-0.1 show=Outlines display add");
+	//The analyze particles is very size sensitive, so ensure that scales are properly set
+	//Will become better once "box" is done
+	
+	//Nearest Neighbour Code Below
+
+	nearestOnly = true; 
+	//nResults is a predefined function (that for some reason doesn't need brackets)
+	//nResults returns the current measurement counter value (# of measurements)
+
+	n = nResults;
+
+	//If n==0 then no measurements have been made 
+	if (n==0)
+		exit("ResultnearestNeighbors Table empty"); 
+	// If the first result is not a Number, then centroid was not set in measurements, 
+	// macro fails without it (possibly because it outputs a range, rather than the distance to centre)
+	if (isNaN(getResult("X", 0)))
+		exit("'Centroid' not set in Set Measurements");
+
+	Dialog.create("Please Set Male Body Lengths");
+	Dialog.addNumber("Male, One Body Length:", 0.23);
+  	Dialog.addNumber("Male, Two Body Lengths:", 0.46);
+  	Dialog.addNumber("Male, Four Body Lengths:", 0.92);
+  	Dialog.show;
+  	male_bl1 = Dialog.getNumber();
+  	male_bl2 = Dialog.getNumber();;
+  	male_bl4 = Dialog.getNumber();;;
+
+	print("MALES");
+	print("Body Length, Mean # Neighbors");
+
+	body_lengths = newArray(male_bl1, male_bl2, male_bl4);
+
+	if (n==0)
+		exit("ResultnearestNeighbors Table empty");
+
+	if (isNaN(getResult("X", 0)))
+		exit("'Centroid' not set in Set Measurements");
+
+	for (k=0; k<3; k++) {
+		total_number_of_neighbors = 0;
+
+		neighbors_arr = newArray();
+
+		for (i=0; i<n; i++) {
+			radius = body_lengths[k];
+			number_of_neighbors = 0;
+			total_distance = 0;
+
+			for (j=0; j<n; j++) {
+				x1 = getResult("X", i);
+				y1 = getResult("Y", i);
+				x2 = getResult("X", j);
+				y2 = getResult("Y", j);
+				dx = x2 - x1;
+				dy = y2 - y1;
+				distance = sqrt(dx*dx + dy*dy);
+		
+				if (distance>0 && distance<radius) {
+					number_of_neighbors += 1;
+				}
+			}
+
+			neighbors_arr = Array.concat(neighbors_arr, number_of_neighbors);
+
+			stats = Array.getStatistics(neighbors_arr,min,max,mean,std);	
+		
+			total_number_of_neighbors += number_of_neighbors;
+		}
+		print(radius+", "+mean);
+	}
+	
+	Dialog.create("Please Set Female Body Lengths");
+	Dialog.addNumber("Female 1 Body Length:", 0.27);
+  	Dialog.addNumber("Female 2 Body Lengths:", 0.54);
+  	Dialog.addNumber("Female 4 Body Lengths:", 1.08);
+  	Dialog.show;
+  	female_bl1 = Dialog.getNumber();
+  	female_bl2 = Dialog.getNumber();;
+  	female_bl4 = Dialog.getNumber();;;
+
+	print("");
+	print("FEMALES");
+	print("Body Length, Mean # Neighbors");
+
+	body_lengths = newArray(female_bl1, female_bl2, female_bl4);
+
+	if (n==0)
+		exit("ResultnearestNeighbors Table empty");
+
+	if (isNaN(getResult("X", 0)))
+		exit("'Centroid' not set in Set Measurements");
+
+	for (k=0; k<3; k++) {
+		total_number_of_neighbors = 0;
+
+		neighbors_arr = newArray();
+
+		for (i=0; i<n; i++) {
+			radius = body_lengths[k];
+			number_of_neighbors = 0;
+			total_distance = 0;
+
+			for (j=0; j<n; j++) {
+				x1 = getResult("X", i);
+				y1 = getResult("Y", i);
+				x2 = getResult("X", j);
+				y2 = getResult("Y", j);
+				dx = x2 - x1;
+				dy = y2 - y1;
+				distance = sqrt(dx*dx + dy*dy);
+		
+				if (distance>0 && distance<radius) {
+					number_of_neighbors += 1;
+				}
+			}
+
+			neighbors_arr = Array.concat(neighbors_arr, number_of_neighbors);
+
+			stats = Array.getStatistics(neighbors_arr,min,max,mean,std);	
+		
+			total_number_of_neighbors += number_of_neighbors;
+		}
+		print(radius+", "+mean);
+	}	
+	
+	print("");
+	print("NEAREST NEIGHBOURS");
+
+	nearestOnly = true;
+	n = nResults;
+	if (n==0)
+	exit("ResultnearestNeighbors Table empty");
+	if (isNaN(getResult("X", 0)))
+	exit("'Centroid' not set in Set Measurements");
+	for (i=0; i<n; i++) {
+	min = 999999;
+	nearest = 0;
+	for (j=0; j<n; j++) {
+	x1 = getResult("X", i);
+	y1 = getResult("Y", i);
+	x2 = getResult("X", j);
+	y2 = getResult("Y", j);
+	dx = x2 - x1;
+	dy = y2 - y1;
+	distance = sqrt(dx*dx + dy*dy);
+	if (distance>0 && distance<min) {
+	min = distance;
+	nearest = j+1;
+	}
+	if (!nearestOnly)
+	print((i+1)+"-"+(j+1)+": "+d2s(distance,2));
+	}
+	if (nearestOnly)
+	print((i+1)+"-"+nearest+": "+d2s(min,2));
+	}
+
+	print("");
+	print("ALL NEIGHBOURS");
+
+	n = nResults;
+	if (n==0)
+	exit("Results Table empty");
+	if (isNaN(getResult("X", 0)))
+	exit("'Centroid' not set in Set Measurements");
+	for (i=0; i<n; i++) {
+	for (j=0; j<n; j++) {
+	x1 = getResult("X", i);
+	y1 = getResult("Y", i);
+	x2 = getResult("X", j);
+	y2 = getResult("Y", j);
+	dx = x2 - x1;
+	dy = y2 - y1;
+	distance = sqrt(dx*dx + dy*dy);
+	print(d2s(distance,2));
+	}
+	print('');
+	};
+
+}
